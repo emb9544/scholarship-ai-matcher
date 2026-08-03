@@ -1,50 +1,96 @@
 import pandas as pd
+import pandas as pd
 
-def find_matches(student_gpa, student_major, student_state, student_first_gen, student_financial_need):
+
+def find_matches(
+    student_gpa,
+    student_major,
+    student_state,
+    student_first_gen,
+    student_financial_need,
+):
     scholarships = pd.read_csv("scholarships.csv")
 
     results = []
 
+    # Clean the student's text once before the loop.
+    student_major = student_major.strip().title()
+    student_state = student_state.strip().upper()
+
     for row_index, scholarship in scholarships.iterrows():
-        score = 0
+        scholarship_major = str(scholarship["major"]).strip().title()
+        scholarship_state = str(scholarship["state"]).strip().upper()
 
-        # GPA match
-        if student_gpa >= scholarship["min_gpa"]:
-            score += 25
+        first_gen_required = str(
+            scholarship["first_gen_required"]
+        ).strip().title()
 
-        # Major match
-        if scholarship["major"] == student_major:
+        financial_need_required = str(
+            scholarship["financial_need_required"]
+        ).strip().title()
+
+        minimum_gpa = float(scholarship["min_gpa"])
+
+        # -------------------------
+        # Step 1: Eligibility checks
+        # -------------------------
+
+        if student_gpa < minimum_gpa:
+            continue
+
+        if scholarship_major != "Any" and scholarship_major != student_major:
+            continue
+
+        if scholarship_state != "ANY" and scholarship_state != student_state:
+            continue
+
+        if first_gen_required == "Yes" and student_first_gen != "Yes":
+            continue
+
+        if (
+            financial_need_required == "Yes"
+            and student_financial_need != "Yes"
+        ):
+            continue
+
+        # -------------------------
+        # Step 2: Match score
+        # -------------------------
+
+        score = 25  # Student meets the GPA requirement.
+
+        if scholarship_major == student_major:
             score += 25
-        elif scholarship["major"] == "Any":
+        else:
             score += 15
 
-        # State match
-        if scholarship["state"] == student_state:
+        if scholarship_state == student_state:
             score += 20
-        elif scholarship["state"] == "Any":
+        else:
             score += 10
 
-        # First-generation match
-        if scholarship["first_gen_required"] == student_first_gen:
+        if first_gen_required == student_first_gen:
             score += 15
-        elif scholarship["first_gen_required"] == "No":
+        else:
             score += 10
 
-        # Financial need match
-        if scholarship["financial_need_required"] == student_financial_need:
+        if financial_need_required == student_financial_need:
             score += 15
-        elif scholarship["financial_need_required"] == "No":
+        else:
             score += 10
 
-        if score > 0:
-            scholarship_data = scholarship.to_dict()
-            scholarship_data["row_index"] = row_index
-            scholarship_data["match_score"] = score
-            results.append(scholarship_data)
+        scholarship_data = scholarship.to_dict()
+        scholarship_data["row_index"] = row_index
+        scholarship_data["match_score"] = score
+
+        results.append(scholarship_data)
 
     matches = pd.DataFrame(results)
 
     if not matches.empty:
-        matches = matches.sort_values(by="match_score", ascending=False)
+        matches = matches.sort_values(
+            by="match_score",
+            ascending=False,
+        ).reset_index(drop=True)
 
     return matches
